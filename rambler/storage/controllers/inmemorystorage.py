@@ -48,7 +48,7 @@ class InMemoryStorage(component('Operation')):
     objects = cls.storage_by_class[model]
     
     if retrieval not in ('first', 'all'):
-      op.records = objects[retrieval]
+      op.records = model(**objects[retrieval])
       return op
       
     def matches(record):
@@ -71,6 +71,13 @@ class InMemoryStorage(component('Operation')):
     return op   
     #attributes = cls.storage_by_class[model][retrieval]
     #return model(**attributes)
+
+
+  @classmethod
+  def count(cls, model, column_name='*', conditions=None):
+    op = cls.find(model, "all",  conditions=conditions)
+    op.block = len
+    return op
     
   @classmethod
   def maximum(cls, model, column_name, conditions=None):

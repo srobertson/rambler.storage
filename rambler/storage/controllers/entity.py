@@ -63,7 +63,11 @@ class Entity(RObject):
   @classmethod
   def maximum(cls, column_name, **conditions):
     return cls.store.fget(cls).maximum(cls, column_name, **conditions)
-
+    
+  @classmethod
+  def count(cls, column_name='*', **conditions):
+    return cls.store.fget(cls).count(cls, column_name, **conditions)
+  
   @classmethod
   def init_with_coder(cls, coder):
     obj = cls()
