@@ -21,6 +21,8 @@ class Entity(RObject):
   @classmethod
   def assembled(cls):
     cls.event_service.registerEvent('create',Entity, Entity)
+    cls.event_service.registerEvent('update',Entity, Entity)
+    cls.event_service.registerEvent('remove',Entity, object)
 
   @property
   def store(self_or_cls):
@@ -104,7 +106,8 @@ class Entity(RObject):
     self.validate()
     if self.errors:
       raise RuntimeError(self.errors)
-      
+
+    run_loop = self.RunLoop.currentRunLoop()
     if self._is_new:
       # Todo: What relies on auto id now? This should be moved to the storage classes
       # or set as a default
@@ -112,16 +115,14 @@ class Entity(RObject):
         self.id = str(uuid.uuid1())
         
       op = self.store.create(self)
-      run_loop = self.RunLoop.currentRunLoop()
       op.add_observer(self, 'is_finished', 0,  run_loop.callFromThread, self.event_service.publish, 'create', Entity, self)
 
-      #i = self.InvocationOperation.new(self.event_service.publish, 'create', self)
-      #i.add_dependency(op)
-      #self.scheduler.queue.add_operation(i)
       
       return op
     else:
-      return self.store.update(self)
+      op = self.store.update(self)
+      op.add_observer(self, 'is_finished', 0,  run_loop.callFromThread, self.event_service.publish, 'update', Entity, self)
+      return op
       
   @property
   def primary_key(self):
@@ -154,6 +155,7 @@ class Entity(RObject):
       return self.value_for_undefined_key(attribute)
     else:
       raise AttributeError(attribute)
+      
     
   def validate(self):
     pass
