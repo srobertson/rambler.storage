@@ -39,21 +39,22 @@ class wrapper():
     self.foreign_key =  foreign_key
     self.model = model
     
-  def __call__(self, *args, **kw):
-    return self.all(*args, **kw)
+  def __call__(self):
+    return self.all()
     
   def create(self, **kw):
     kw[self.foreign_key] = self.obj.primary_key
     return self.model.create(**kw)
     
-  def find(self, *args, **constraints):
-    constraints[self.foreign_key] = self.obj.primary_key
-    return self.model.find(*args, **constraints)
+  def find(self, *args, **conditions):
+    conditions[self.foreign_key] = self.obj.primary_key
+    return self.model.find(*args, conditions=conditions)
     
   def all(self):
     q = {self.foreign_key: self.obj.primary_key}
-    return self.model.find('all', **q)
+    return self.model.find('all', conditions=q)
       
   def count(self):
-    return self.model.count()
+    q = {self.foreign_key: self.obj.primary_key}
+    return self.model.count(conditions=q)
   

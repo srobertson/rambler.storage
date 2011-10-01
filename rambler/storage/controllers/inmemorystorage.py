@@ -39,10 +39,8 @@ class InMemoryStorage(component('Operation')):
   
   @classmethod
   def find(cls, model, retrieval, order=None, limit=None, conditions=None, **kw):
-    # TODO: Implment the full storage protocol
 
-    if not conditions:
-      conditions = {}
+    conditions = conditions or kw
 
     op = cls()
     objects = cls.storage_by_class[model]
