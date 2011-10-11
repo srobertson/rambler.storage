@@ -77,7 +77,7 @@ class EntityLogger(object):
     base_path = self.log_dir #os.path.join(self.log_dir, cls.__name__.lower())
     
     log_path = os.path.join(base_path,
-                            datetime.datetime.now().strftime(self.date_format))
+                            datetime.datetime.utcnow().strftime(self.date_format))
     log_path = os.path.join(base_path, 'storage.log')
     try:
       return open(log_path, 'a+')
