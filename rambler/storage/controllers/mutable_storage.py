@@ -68,6 +68,7 @@ class MutableStorage(component('Operation')):
     return op   
     #attributes = cls.storage_by_class[model][retrieval]
     #return model(**attributes)
+    
 
 
   @classmethod
@@ -75,6 +76,7 @@ class MutableStorage(component('Operation')):
     op = cls.find(model, "all",  conditions=conditions)
     op.block = len
     return op
+    
     
   @classmethod
   def maximum(cls, model, column_name, conditions=None):
@@ -86,7 +88,55 @@ class MutableStorage(component('Operation')):
     op.block = first_column
     return op
     
+
+  ## Operations on relationships
+  @classmethod
+  def count_related(cls, entity, relation):
+    op = cls()
+    op.records = entity.attr[relation.name].values
+    op.block = len
+    return op
+    
+  @classmethod
+  def find_related(cls, entity, relation, *args, **conditions):
+    op = cls()
+    
+    if relation.cardinality == 'many':
+      op.records = entity.attr[relation.name].values
+    else:
+      op.records =  entity.attr[relation.name]
+    return op
+    
+  @classmethod
+  def relate(cls, entity, related_obj, relation):
+    op = cls()
+    
+    op.records = ((related_obj, entity, relation), (entity, related_obj, relation.inverse))
+    
+    def do_relate():
+      records = op.records
+      for left,right,relation in records:
+        if relation is None:
+          continue
+          
+        if relation.cardinality == 'one':
+          left.attr[relation.name] = right
+        elif relation.cardinality == 'many':
+          left.attr[relation.name].values.add(right)
+        else:
+          raise RuntimeError('Uknonwn relation type {0}'.format(relation.cardinality))
+      
+      op.records = None
+
+          
+    #op.block = do_relate
+    op.main = do_relate
+    
+    return op
   
+  def __repr__(self):
+    return "<MutableStorage block: %s>" % self.block
+
   def main(self):
     pass
 

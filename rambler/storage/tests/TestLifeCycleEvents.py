@@ -1,11 +1,8 @@
-import unittest
-import new
+import os
+
 
 from Rambler import field
 from Rambler.TestCase import TestCase
-
-
-
 
 class TestLifeCycleEvents(TestCase):
   componentName = 'Entity'
@@ -13,6 +10,7 @@ class TestLifeCycleEvents(TestCase):
     'storage.conf': {'default': 'InMemoryStorage'}
   }
   
+  #app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),'../'))
   def setUp(self):
     super(TestLifeCycleEvents,self).setUp()
     # Create a dynamic class on the fly

@@ -1,17 +1,29 @@
 import uuid
 import inspect
+from collections import defaultdict
 
 from Rambler import outlet, option, component, nil, field
 from Rambler.Entity import RObject
+
+
 
 class Entity(RObject):
   RunLoop = outlet('RunLoop')
   component_registry = outlet('ComponentRegistry')
   store_conf = option('storage','conf')
   event_service = outlet('EventService')
+
+  en_inflector = outlet('EnglishInflector')
+  
+  one = outlet('one')
+  many = outlet('many')
+  
   
   _store = None
   _is_new = False
+  
+  roles_by_class = defaultdict(dict)
+  relations_by_class = defaultdict(dict)
   
   errors = nil
   
@@ -23,7 +35,31 @@ class Entity(RObject):
     cls.event_service.registerEvent('create',Entity, Entity)
     cls.event_service.registerEvent('update',Entity, Entity)
     cls.event_service.registerEvent('remove',Entity, object)
+    
+    # relation events post a tuple containing object, object, relation
+    cls.event_service.registerEvent('relate',Entity,  object)
+    cls.event_service.registerEvent('unrelate',Entity, object)
 
+  @classmethod
+  def relation_role_for(cls, name):
+    return cls.roles_by_class[cls][name]
+    
+  @classmethod
+  def belongs_to(cls, name, **options):
+    setattr(cls, name, cls.one(cls, name, ownership='belongs', **options))
+
+  @classmethod
+  def has_one(cls, name, **options):
+    setattr(cls, name, cls.one(cls, name, ownership='has', **options))
+    
+  @classmethod
+  def has_many(cls, name, **options):
+    setattr(cls, name, cls.many(cls, name, ownership='has', **options))
+    
+  @classmethod
+  def has_and_belongs_to_many(cls, name, **options):
+    setattr(cls, name, cls.many(cls, name, ownership='has', **options))
+        
   @property
   def store(self_or_cls):
     if isinstance(self_or_cls, type):
@@ -40,9 +76,11 @@ class Entity(RObject):
 
   @classmethod
   def fields(cls):
+    one = cls.one
     if not hasattr(cls, '_fields'):
       cls._fields = {}
-      for name, field_instance in inspect.getmembers(cls, lambda f: isinstance(f, field)):
+      for name, field_instance in inspect.getmembers(cls, lambda f: isinstance(f, field) or isinstance(f,one)):
+          
         field_instance.name = name
         cls._fields[name] = field_instance
     return cls._fields
@@ -53,14 +91,16 @@ class Entity(RObject):
     
   @classmethod
   def create(cls, **kw):
-    instance = cls()
+    instance = cls()      
     instance.set_values(kw)
     instance._is_new = True
-    return instance
-  
+    return instance.save()
+    
+    
   @classmethod
   def find(cls, retreival, order=None, **conditions):
     return cls.store.fget(cls).find(cls, retreival, order, **conditions)
+
     
   @classmethod
   def maximum(cls, column_name, **conditions):
@@ -69,6 +109,37 @@ class Entity(RObject):
   @classmethod
   def count(cls, column_name='*', **conditions):
     return cls.store.fget(cls).count(cls, column_name, **conditions)
+
+
+  # Relationship methods
+  
+  def relate(self, related_obj, relation):
+    run_loop = self.RunLoop.currentRunLoop()
+    op = self.store.relate(self, related_obj, relation)
+
+    op.add_observer(self, 'is_finished', 0,  
+      run_loop.callFromThread, 
+        self.event_service.publish,
+          'relate', Entity, (related_obj, self, relation))
+          
+    return op
+
+  @classmethod
+  def create_related(cls, related_obj, relation, **kw):
+    instance = cls.create(**kw)
+    return cls.store.fget(cls).relate(instance, related_obj, relation)
+    
+  @classmethod
+  def find_related(cls, related_obj, relation, *args, **conditions):
+    return cls.store.fget(cls).find_related(related_obj, relation, *args, **conditions)
+
+  @classmethod
+  def count_related(cls, related_obj, relation):
+    """Return the count of the objects related to related_object"""
+    return cls.store.fget(cls).count_related(related_obj, relation)
+   
+
+    
   
   @classmethod
   def init_with_coder(cls, coder):
@@ -91,8 +162,11 @@ class Entity(RObject):
     """Introspect the given object and returns a dictionary of values that should be persisted"""
 
     for field_name, field in self.fields().items():
-
-      encode_method_name = 'encode_%s_for' % field.type.__name__
+      try:
+        encode_method_name = 'encode_%s_for' % field.type.__name__
+      except AttributeError:
+        # ignore relations
+        continue
       # attempt to call encode_type_for() the given type, for example
       # encode_int_for(...) if the value is an int. If the coder does
       # support the specific type we use the generic to encode_object_for(...)
@@ -142,6 +216,18 @@ class Entity(RObject):
   def __init__(self, **kw):
     self.attr = {}
     super(Entity,self).__init__(**kw)
+    
+    
+  def set_value_for_key(self, value, key):
+    """Entities will only set values on fields or relationships"""
+    
+    self.will_change_value_for(key)
+    
+    if key in self.fields():
+      setattr(self,key,value)
+    else:
+      self.set_value_for_undefined_key(value, key)
+    self.did_change_value_for(key)
 
     
   def __getitem__(self, key):
