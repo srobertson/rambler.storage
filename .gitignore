@@ -1,3 +1,4 @@
 *.py[o|c]
 rambler.storage.egg-info/
+rambler/storage/log/
 
