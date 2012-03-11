@@ -89,6 +89,14 @@ class Entity(RObject):
   def attributes(self):
     return self.fields().keys()
     
+    
+  @classmethod
+  def new (cls, **kw):
+    instance = cls()      
+    instance.set_values(kw)
+    instance._is_new = True
+    return instance
+    
   @classmethod
   def create(cls, **kw):
     instance = cls()      
