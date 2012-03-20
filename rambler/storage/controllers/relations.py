@@ -1,4 +1,4 @@
-from Rambler import outlet, component,asynch,coroutine
+from Rambler import outlet, component,coroutine
 
     
 __guess__ = ()
@@ -171,9 +171,10 @@ class collection:
     # Return the op incase some one has the urge to wait for it
     #return obj.save()
     return self.obj.relate(obj, self.relation)
-      
+  
   def create(self, **kw):
-    return self.relation.destination.create_related(self.obj, self.relation, **kw)
+    op = self.relation.destination.create_related(self.obj, self.relation, **kw)
+    return op
     #kw[self.foreign_key] = self.obj.primary_key
     #return self.model.create(**kw)
     

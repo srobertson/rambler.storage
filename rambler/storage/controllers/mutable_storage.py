@@ -99,8 +99,8 @@ class MutableStorage(component('Operation')):
     
   @classmethod
   def find_related(cls, entity, relation, *args, **conditions):
+    # TODO: this should mimic the entity.find behavior
     op = cls()
-    
     if relation.cardinality == 'many':
       op.records = entity.attr[relation.name].values
     else:
@@ -114,6 +114,7 @@ class MutableStorage(component('Operation')):
     op.records = ((related_obj, entity, relation), (entity, related_obj, relation.inverse))
     
     def do_relate():
+
       records = op.records
       for left,right,relation in records:
         if relation is None:
@@ -122,6 +123,7 @@ class MutableStorage(component('Operation')):
         if relation.cardinality == 'one':
           left.attr[relation.name] = right
         elif relation.cardinality == 'many':
+
           left.attr[relation.name].values.add(right)
         else:
           raise RuntimeError('Uknonwn relation type {0}'.format(relation.cardinality))

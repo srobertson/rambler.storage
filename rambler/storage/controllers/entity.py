@@ -2,7 +2,7 @@ import uuid
 import inspect
 from collections import defaultdict
 
-from Rambler import outlet, option, component, nil, field
+from Rambler import outlet, option, component, nil, field,coroutine
 from Rambler.Entity import RObject
 
 
@@ -120,7 +120,7 @@ class Entity(RObject):
 
 
   # Relationship methods
-  
+  @coroutine
   def relate(self, related_obj, relation):
     run_loop = self.RunLoop.currentRunLoop()
     op = self.store.relate(self, related_obj, relation)
@@ -133,9 +133,10 @@ class Entity(RObject):
     return op
 
   @classmethod
+  @coroutine
   def create_related(cls, related_obj, relation, **kw):
-    instance = cls.create(**kw)
-    return cls.store.fget(cls).relate(instance, related_obj, relation)
+    instance = yield cls.create(**kw)
+    yield cls.store.fget(cls).relate(instance, related_obj, relation)
     
   @classmethod
   def find_related(cls, related_obj, relation, *args, **conditions):
