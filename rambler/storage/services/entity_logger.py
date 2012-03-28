@@ -40,6 +40,8 @@ class EntityLogger(object):
   
   def assembled(self):
     self.EventService.subscribeToEvent('Initializing', self.on_init, object)
+    self.EventService.registerEvent('log.replayed', self, type(None))
+
     
     size, unit = re.match('(\d+)\s*(\w\w)*', str(self.rotate_log_size_option)).groups()
     self.rotate_log_size = int(size) * units[unit]
@@ -81,6 +83,9 @@ class EntityLogger(object):
             
             entity.set_values(record)
             yield entity.save()
+        
+
+        self.EventService.publishEvent('log.replayed',self,None)
     
     self.log_file = self.create_log_file()
     self.EventService.subscribeToEvent('create', self.on_create, object)

@@ -102,9 +102,9 @@ class MutableStorage(component('Operation')):
     # TODO: this should mimic the entity.find behavior
     op = cls()
     if relation.cardinality == 'many':
-      op.records = entity.attr[relation.name].values
+      op.records = entity.attr.get(relation.name,{}).values
     else:
-      op.records =  entity.attr[relation.name]
+      op.records =  entity.attr.get(relation.name)
     return op
     
   @classmethod
