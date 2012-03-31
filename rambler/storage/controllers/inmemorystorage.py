@@ -1,7 +1,7 @@
 import itertools
 
 from collections import defaultdict
-from Rambler import component
+from Rambler import component, coroutine
 from Rambler.LRU import LRU
 
 class InMemoryStorage(component('Operation')):
@@ -16,6 +16,11 @@ class InMemoryStorage(component('Operation')):
   @classmethod
   def will_disassemble(cls):
     cls.storage_by_class.clear()
+
+  @classmethod
+  @coroutine
+  def commit(cls):
+    yield
   
   @classmethod
   def create(cls, obj):
@@ -35,7 +40,7 @@ class InMemoryStorage(component('Operation')):
     
     return operation
     
-  update = create
+  save = update = create
   
   @classmethod
   def find(cls, model, retrieval, order=None, limit=None, conditions=None, **kw):

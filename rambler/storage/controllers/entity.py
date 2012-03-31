@@ -14,6 +14,7 @@ class Entity(RObject):
   event_service = outlet('EventService')
 
   en_inflector = outlet('EnglishInflector')
+  UnitOfWork = outlet('UnitOfWork')
   
   one = outlet('one')
   many = outlet('many')
@@ -39,7 +40,50 @@ class Entity(RObject):
     # relation events post a tuple containing object, object, relation
     cls.event_service.registerEvent('relate',Entity,  object)
     cls.event_service.registerEvent('unrelate',Entity, object)
+    
+    
+  @classmethod
+  def uow(cls):
+    try:
+      uow = coroutine.context.rambler_storage_uow
+    except AttributeError:
+      uow = coroutine.context.rambler_storage_uow = cls.UnitOfWork()
+    return uow
+    
+  @classmethod
+  @coroutine
+  def commit(cls):
+    """Commit changes made to any object in this context."""
+    uow = cls.uow()
 
+    stores = set()
+    try:
+      # Save the new objects
+      for obj in uow.get_new():
+        store = cls.store.fget(cls)
+        stores.add(store)
+        yield store.create(obj)
+
+
+      for obj in uow.get_dirty():
+        store = cls.store.fget(cls)
+        stores.add(store)
+        yield store.update(obj)
+
+      for obj in uow.get_removed():
+        store = cls.store.fget(cls)
+        stores.add(store)
+        yield store.remove(obj)
+
+      for store in stores:
+        yield store.commit()
+      uow.clean()
+    except:
+        # Error encountered during prepare, vote rollback
+        uow.rollback()
+        raise
+    
+    
   @classmethod
   def relation_role_for(cls, name):
     return cls.roles_by_class[cls][name]
@@ -99,8 +143,12 @@ class Entity(RObject):
     
   @classmethod
   def create(cls, **kw):
-    instance = cls()      
+    instance = cls()          
     instance.set_values(kw)
+    if instance.primary_key is None:
+      instance.id = str(uuid.uuid1())
+    cls.uow().register_new(instance)
+    
     instance._is_new = True
     return instance.save()
     

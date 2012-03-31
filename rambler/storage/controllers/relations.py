@@ -58,9 +58,15 @@ class one(object):
       return  relation(obj,self)
       
   def __set__(self, obj,  value):
+
+    obj.attr[self.name] = value
+    inverse = self.inverse
+    if inverse:
+      value.attr[inverse.name] = obj
+    
     #op = obj.relate(value, self)
-    op = value.relate(obj,self)
-    self.scheduler.queue.add_operation(op)
+    #op = value.relate(obj,self)
+    #self.scheduler.queue.add_operation(op)
   
   @property
   def destination(self):
