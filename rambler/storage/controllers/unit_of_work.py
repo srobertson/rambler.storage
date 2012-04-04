@@ -144,6 +144,8 @@ class UnitOfWork(object):
 
     self._obj_states = {}
   rollback = clear
+  
+    
   def objects(self):
     # flatten all objects
     return list(itertools.chain(*self._objects.values()))

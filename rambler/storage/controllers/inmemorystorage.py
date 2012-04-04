@@ -71,9 +71,18 @@ class InMemoryStorage(component('Operation')):
         return map(lambda r: model(**r), records)
       op.block = lazy_map_all
      
-    return op   
-    #attributes = cls.storage_by_class[model][retrieval]
-    #return model(**attributes)
+    return op
+
+  @classmethod
+  @coroutine
+  def find_related(cls, entity, relation, *args, **conditions):
+    # TODO: this should mimic the entity.find behavior
+
+    if relation.cardinality == 'many':
+      yield entity.attr.get(relation.name,{}).values
+    else:
+      yield  entity.attr.get(relation.name)
+
 
 
   @classmethod

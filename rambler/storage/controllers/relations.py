@@ -62,11 +62,7 @@ class one(object):
     obj.attr[self.name] = value
     inverse = self.inverse
     if inverse:
-      value.attr[inverse.name] = obj
-    
-    #op = obj.relate(value, self)
-    #op = value.relate(obj,self)
-    #self.scheduler.queue.add_operation(op)
+      setattr(value, inverse.name, obj)
   
   @property
   def destination(self):
@@ -100,13 +96,7 @@ class one(object):
       singular = self.model.__name__.lower()
       return  (singular, self.en_inflector.pluralize(singular))
   
-    
-  #@property
-  #def model(self):
-  #  if self._model is None:
-  #    self._model = self.comp_reg.lookup(self.model_name)
-  #  return self._model
-    
+        
 class many(one):
   cardinality   = "many"
   def wrap(self, obj):
@@ -139,9 +129,13 @@ class relation:
     entity = yield self.destination.create(*args, **kw)
     yield self.set(entity)
     yield entity
-    
+  
+  @coroutine  
   def find(self):
-    return self.destination.find_related(self.obj, self.relation)
+    if self.obj.attr.has_key(self.relation.name):
+      yield self.obj.attr[self.relation.name]
+    else:
+      yield self.destination.find_related(self.obj, self.relation)
     
   def set(self, other):
     return other.relate(self.obj, self.relation)
@@ -176,7 +170,8 @@ class collection:
     #obj[self.foreign_key] = self.obj.primary_key
     # Return the op incase some one has the urge to wait for it
     #return obj.save()
-    return self.obj.relate(obj, self.relation)
+    self.values.add(obj)
+    #return self.obj.relate(obj, self.relation)
   
   def create(self, **kw):
     op = self.relation.destination.create_related(self.obj, self.relation, **kw)

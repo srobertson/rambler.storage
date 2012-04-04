@@ -1,4 +1,4 @@
-from nose.tools import eq_
+from nose.tools import eq_, assert_raises
 import os
 
 from Rambler import field, coroutine
@@ -55,15 +55,18 @@ class TestLifeCycleEvents(TestCase):
       eq_(len(uow.get_clean()), 1)
     
       minion1 = yield self.Employee.create(name="El Hefe", manager=manager)
-      eq_(minion1.manager, manager)
-      assert minion1 in manager.subordinates
+      
+      minion1_manager = yield minion1.manager()
+      
+      eq_(minion1_manager, manager)
+      
+      subordinates = yield manager.subordinates()
+      assert minion1 in subordinates
     
       eq_(len(uow.objects()), 2)
       eq_(len(uow.get_new()), 1)
       eq_(len(uow.get_clean()), 1)
     
-      # forget throws an error if their are changed objects
-      assert_raises(RuntimeError, uow.forget)
     
       yield self.Employee.commit()
     
@@ -71,7 +74,7 @@ class TestLifeCycleEvents(TestCase):
       eq_(len(uow.get_new()), 0)
       eq_(len(uow.get_clean()), 2)
 
-      uow.forget()
+      uow.clear()
       eq_(len(uow.objects()), 0)
       eq_(len(uow.get_new()), 0)
       eq_(len(uow.get_clean()), 0)
