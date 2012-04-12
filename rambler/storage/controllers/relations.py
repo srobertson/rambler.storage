@@ -1,10 +1,8 @@
 from Rambler import outlet, component,coroutine
 
-    
-__guess__ = ()
-  
 
-      
+__guess__ = ()
+
 
 class one(object):
   """ Proxy for a related entity
@@ -21,11 +19,9 @@ class one(object):
   
   Noromal usage:
   >>> other = yield obj.other
-  # Permofrm operotaion on entities
-  
-  
-  
+  # Permofrm operotaion on entities  
   """
+  
   comp_reg     = outlet('ComponentRegistry')
   scheduler    = outlet('Scheduler')
   en_inflector = outlet('EnglishInflector')
@@ -58,11 +54,24 @@ class one(object):
       return  relation(obj,self)
       
   def __set__(self, obj,  value):
-
-    obj.attr[self.name] = value
+    self.relate(obj, value)
+    
     inverse = self.inverse
     if inverse:
-      setattr(value, inverse.name, obj)
+      inverse.relate(value, obj)
+  
+  def relate(self, obj,  other):
+    if self.cardinality == "one":
+      try:
+        obj.attr[self.name] = other
+      except:
+        import pdb; pdb.set_trace()
+        pass
+    elif self.cardinality == "many":
+      self.wrap(obj).values.add(other)
+    else: #never should get here
+      raise RuntimeError
+
   
   @property
   def destination(self):
@@ -84,7 +93,6 @@ class one(object):
       #assert self._inverse, "Missing inverse for %s" % self.name
 
     return self._inverse
-    
   
     
   def guess_inverse(self):
@@ -144,7 +152,7 @@ class relation:
     return other.unrelate(self.obj, self.relation)
 
     
-class collection:
+class collection(object):
   """Collection of objects, relies on the storage to fill in self.values
   """
   def __init__(self, obj, relation):
@@ -159,25 +167,18 @@ class collection:
     return self.all()
 
   def all(self):
-    return self.find('all')
+    return self.find('all')    
     
-    #self.model.find_related(self.obj, self.relation)
-    #q = {self.foreign_key: self.obj.primary_key}
-    #return self.model.find('all', conditions=q)
-    
-  def add(self, obj):
-    #self.model.relate(obj)
-    #obj[self.foreign_key] = self.obj.primary_key
-    # Return the op incase some one has the urge to wait for it
-    #return obj.save()
-    self.values.add(obj)
-    #return self.obj.relate(obj, self.relation)
-  
+  def add(self, other):
+    self.values.add(other)
+    inverse = self.relation.inverse
+    if inverse:
+      inverse.relate(other, self.obj)
+
+  @coroutine
   def create(self, **kw):
-    op = self.relation.destination.create_related(self.obj, self.relation, **kw)
-    return op
-    #kw[self.foreign_key] = self.obj.primary_key
-    #return self.model.create(**kw)
+    other = yield self.relation.destination.create(**kw)
+    self.add(other)
     
   def find(self, *args, **conditions):
     return self.relation.destination.find_related(self.obj, self.relation, *args, **conditions)

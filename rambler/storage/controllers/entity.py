@@ -1,3 +1,4 @@
+import sys
 import uuid
 import inspect
 from collections import defaultdict
@@ -12,7 +13,7 @@ class Entity(RObject):
   component_registry = outlet('ComponentRegistry')
   store_conf = option('storage','conf')
   event_service = outlet('EventService')
-
+  log = outlet("LogService")
   en_inflector = outlet('EnglishInflector')
   UnitOfWork = outlet('UnitOfWork')
   
@@ -56,32 +57,24 @@ class Entity(RObject):
     """Commit changes made to any object in this context."""
     uow = cls.uow()
 
-    stores = set()
     try:
-      # Save the new objects
-      for obj in uow.get_new():
-        store = cls.store.fget(cls)
-        stores.add(store)
-        yield store.create(obj)
-
-
-      for obj in uow.get_dirty():
-        store = cls.store.fget(cls)
-        stores.add(store)
-        yield store.update(obj)
-
-      for obj in uow.get_removed():
-        store = cls.store.fget(cls)
-        stores.add(store)
-        yield store.remove(obj)
-
-      for store in stores:
-        yield store.commit()
-      uow.clean()
+      for store in uow.stores():
+        yield store.commit(uow)
     except:
-        # Error encountered during prepare, vote rollback
-        uow.rollback()
-        raise
+      exc_info = sys.exc_info() #store orginal error incase the storage has a problem
+      for store in uow.stores():
+        try:
+          yield store.rollback()
+        except:
+          # storages should not throw exceptions during rollback, not much we can
+          # do if the error handler has an error except log it
+          cls.log.exception("Exception encountered  rollingback store %s", store)
+      uow.rollback()
+      # throw the original exception
+      raise exc_info[0],exc_info[1],exc_info[2]
+    
+    uow.clean()
+
     
     
   @classmethod
@@ -149,8 +142,7 @@ class Entity(RObject):
       instance.id = str(uuid.uuid1())
     cls.uow().register_new(instance)
     
-    instance._is_new = True
-    return instance.save()
+    return instance
     
     
   @classmethod
@@ -302,5 +294,5 @@ class Entity(RObject):
     
   def validate(self):
     pass
-  
+
   

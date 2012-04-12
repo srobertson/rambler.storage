@@ -17,10 +17,26 @@ class InMemoryStorage(component('Operation')):
   def will_disassemble(cls):
     cls.storage_by_class.clear()
 
+
+  @classmethod
+  def prepare(cls, uow):
+    pass
+    
   @classmethod
   @coroutine
-  def commit(cls):
-    yield
+  def commit(cls, uow):
+    for obj in uow.where(store=cls, state=uow.NEW):
+      cls.storage_by_class[type(obj)][obj.primary_key] = obj.attr.copy()
+    
+    for obj in uow.where(store=cls, state=uow.DIRTY):
+      cls.storage_by_class[type(obj)][obj.primary_key] = obj.attr.copy()
+    
+    for obj in uow.where(store=cls, state=uow.REMOVED):
+      del cls.storage_by_class[type(obj)][obj.primary_key]
+      
+  @classmethod
+  def rollback(cls):
+    pass
   
   @classmethod
   def create(cls, obj):
