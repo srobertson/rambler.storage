@@ -59,7 +59,11 @@ class one(object):
     
       
   def relate(self, obj, value):
-    obj.attr[self.name ] = value
+    """Relates one object to anther and publishes KVO event"""
+    if obj.attr.get(self.name) != value:
+      obj.will_change_value_for(self.name)
+      obj.attr[self.name ] = value
+      obj.did_change_value_for(self.name)
 
   
   @property
@@ -110,7 +114,13 @@ class many(one):
     self.relate(obj,value)
     
   def relate(self, obj, value):
-    self.wrap(obj).add(value)
+    collection = self.wrap(obj)
+    if value not in collection.values:
+      objects = [value]
+      obj.will_mutate_set(self.name, obj.KeyValueUnionSetMutation, objects)
+      collection.values.add(value)
+      obj.did_mutate_set(self.name, obj.KeyValueUnionSetMutation, objects)
+    
     
 class relation:
   """Manages the relation between two objects"""

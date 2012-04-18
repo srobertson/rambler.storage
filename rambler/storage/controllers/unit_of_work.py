@@ -27,9 +27,12 @@ class UnitOfWork(object):
     self._changes = STable()
    
   def observe_value_for(self, key_path, obj, changes):
-    if obj.is_clean():
+    if changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeInsertion:
+      self._changes.insert({'type': 'relate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeNewKey]})
+      
+    elif obj.is_clean():
       obj._Entity__state = obj.DIRTY
-      self._changes.insert({'type': 'update', 'object': obj, 'mutations': {key_path: obj.attr[key_path]}})
+      self._changes.insert({'type': 'update', 'object': obj, 'set': {key_path: obj.attr[key_path]}})
       self.register_dirty(obj)
     # todo: track set mutations as individual changes
     else:
@@ -137,7 +140,7 @@ class UnitOfWork(object):
         #Optimize hint, old is the row_id, so we could avoid a double search
         self.table.update().set(state=state).where(__class__=type(obj), primary_key=pk).execute()
     else:
-      obj.add_observer(self, '*', obj.KeyValueObservingOptionOld)
+      obj.add_observer(self, '*', obj.KeyValueObservingOptionOld | obj.KeyValueObservingOptionNew)
       self.table.insert(obj)
 
               

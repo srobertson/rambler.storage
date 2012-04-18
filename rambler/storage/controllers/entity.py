@@ -313,24 +313,23 @@ class Entity(RObject):
   def set_value_for_key(self, value, key):
     """Entities will only set values on fields or relationships"""
 
-    self.will_change_value_for(key)
+
     field = self.fields().get(key)
     
     if field:
-      if field.is_relation:
+      if field.is_relation: # relations will handle will/did_change_value calls 
         field.relate(self, value)
         inverse = field.inverse
         if inverse:
-          value.will_change_value_for(inverse.name)
           inverse.relate(value, self)
-          value.did_change_value_for(inverse.name)
       else:
+        self.will_change_value_for(key)
         self.attr[key] = value
+        self.did_change_value_for(key)
     else:
+      self.will_change_value_for(key)
       self.set_value_for_undefined_key(value, key)
-      
-
-    self.did_change_value_for(key)
+      self.did_change_value_for(key)
 
     
   def __getitem__(self, key):
