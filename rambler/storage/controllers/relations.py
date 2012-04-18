@@ -30,6 +30,7 @@ class one(object):
   scheduler    = outlet('Scheduler')
   en_inflector = outlet('EnglishInflector')
   cardinality  = "one"
+  is_relation  = True 
     
   @classmethod
   def assembled(cls):
@@ -58,11 +59,11 @@ class one(object):
       return  relation(obj,self)
       
   def __set__(self, obj,  value):
-
-    obj.attr[self.name] = value
-    inverse = self.inverse
-    if inverse:
-      setattr(value, inverse.name, obj)
+    self.relate(obj, value)
+    
+      
+  def relate(self, obj, value):
+    obj.attr[self.name ] = value
   
   @property
   def destination(self):
@@ -110,6 +111,9 @@ class many(one):
     return self.wrap(obj)
     
   def __set__(self, obj,  value):
+    self.relate(obj,value)
+    
+  def relate(self, obj, value):
     self.wrap(obj).add(value)
     
 class relation:
@@ -172,7 +176,7 @@ class collection:
     #return obj.save()
     self.values.add(obj)
     #return self.obj.relate(obj, self.relation)
-  
+      
   def create(self, **kw):
     op = self.relation.destination.create_related(self.obj, self.relation, **kw)
     return op

@@ -20,67 +20,66 @@ class TestLifeCycleEvents(TestCase):
     super(TestLifeCycleEvents,self).setUp()
     # Create a dynamic class on the fly
     self.TestEntity = type('TestEntity', (self.Entity,), {'id': field(str)})
-    self.EventService.subscribeToEvent('create', self.on_create, self.Entity)
-    self.wait(.1)
+
+  
+  @TestCase.coroutine
+  def test_json_storage(self):
+    self.test_options['storage.conf']['default'] = 'JSONStorage'
+    self.test_commit()
     
-  def test_listen_for_create(self):
-    def routine():
-      e = yield self.TestEntity.create()
-    op = self.CoroutineOperation(routine(),self.queue)
-    self.wait_for(op)
-    self.assertEqual(op.result, self.observed)
-    
-  def on_create(self, entity):
-    self.observed = entity
-    
+  @TestCase.coroutine
   def test_commit(self):
-    
-    def routine():
+    manager = yield self.Employee.create(name="El Guapo")
+    # .. Q: is create now an op?
+    uow = coroutine.context.rambler_storage_uow
+  
+    eq_(len(uow.objects()),     1)
+    eq_(len(uow.get_new()),     1)
+    eq_(len(uow.get_clean()),   0)
+    eq_(len(uow.get_dirty()),   0)
+    eq_(len(uow.get_removed()), 0)
+  
+    yield self.Employee.commit()
 
-      manager = yield self.Employee.create(name="El Guapo")
-      # .. Q: is create now an op?
-      uow = coroutine.context.rambler_storage_uow
-    
-      eq_(len(uow.objects()), 1)
-      eq_(len(uow.get_new()), 1)
+    # Commiting the transaction flushes the changes to the storage
+    # the unit of work will keep track of the object now in the "clean"
+    # state
 
-      yield self.Employee.commit()
+    eq_(len(uow.objects()),     1)
+    eq_(len(uow.get_new()),     0)
+    eq_(len(uow.get_clean()),   1)
+    eq_(len(uow.get_dirty()),   0)
+    eq_(len(uow.get_removed()), 0)
+  
+    minion1 = yield self.Employee.create(name="El Hefe", manager=manager)
+    
+    minion1_manager = yield minion1.manager()
+    
+    eq_(minion1_manager, manager)
+    
+    subordinates = yield manager.subordinates()
+    assert minion1 in subordinates
+  
+    eq_(len(uow.objects()),     2)
+    eq_(len(uow.get_new()),     1)
+    eq_(len(uow.get_clean()),   0)
+    eq_(len(uow.get_dirty()),   1)
+    eq_(len(uow.get_removed()), 0)
 
-      # Commiting the transaction flushes the changes to the storage
-      # the unit of work will keep track of the object now in the "clean"
-      # state
-
-      eq_(len(uow.objects()), 1)
-      eq_(len(uow.get_new()), 0)
-      eq_(len(uow.get_clean()), 1)
+  
+    yield self.Employee.commit()
+    eq_(len(uow.objects()),     2)
+    eq_(len(uow.get_new()),     0)
+    eq_(len(uow.get_clean()),   2)
+    eq_(len(uow.get_dirty()),   0)
+    eq_(len(uow.get_removed()), 0)
+  
+    uow.clear()
+    eq_(len(uow.objects()),     0)
+    eq_(len(uow.get_new()),     0)
+    eq_(len(uow.get_clean()),   0)
+    eq_(len(uow.get_dirty()),   0)
+    eq_(len(uow.get_removed()), 0)
+  
     
-      minion1 = yield self.Employee.create(name="El Hefe", manager=manager)
-      
-      minion1_manager = yield minion1.manager()
-      
-      eq_(minion1_manager, manager)
-      
-      subordinates = yield manager.subordinates()
-      assert minion1 in subordinates
-    
-      eq_(len(uow.objects()), 2)
-      eq_(len(uow.get_new()), 1)
-      eq_(len(uow.get_clean()), 1)
-    
-    
-      yield self.Employee.commit()
-    
-      eq_(len(uow.objects()), 2)
-      eq_(len(uow.get_new()), 0)
-      eq_(len(uow.get_clean()), 2)
-
-      uow.clear()
-      eq_(len(uow.objects()), 0)
-      eq_(len(uow.get_new()), 0)
-      eq_(len(uow.get_clean()), 0)
-    
-    op = self.CoroutineOperation(routine(),self.queue)
-    self.wait_for(op)
-
-    op.result
-
+  

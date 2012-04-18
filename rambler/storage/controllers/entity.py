@@ -3,11 +3,19 @@ import inspect
 from collections import defaultdict
 
 from Rambler import outlet, option, component, nil, field,coroutine
-from Rambler.Entity import RObject
+from Rambler.robject import RObject
 
 
 
 class Entity(RObject):
+  #TODO: These are redunant with the constants in the uow
+  # determine who owns state
+  NOT_EXIST = 0
+  NEW       = 1
+  CLEAN     = 2
+  DIRTY     = 3
+  REMOVED   = 4
+  
   RunLoop = outlet('RunLoop')
   component_registry = outlet('ComponentRegistry')
   store_conf = option('storage','conf')
@@ -41,6 +49,11 @@ class Entity(RObject):
     cls.event_service.registerEvent('relate',Entity,  object)
     cls.event_service.registerEvent('unrelate',Entity, object)
     
+  @classmethod
+  def will_disassemble(cls):
+    # Clear cached store
+    cls._store = None
+    #cls._fields = None
     
   @classmethod
   def uow(cls):
@@ -56,27 +69,13 @@ class Entity(RObject):
     """Commit changes made to any object in this context."""
     uow = cls.uow()
 
-    stores = set()
     try:
-      # Save the new objects
-      for obj in uow.get_new():
-        store = cls.store.fget(cls)
-        stores.add(store)
-        yield store.create(obj)
-
-
-      for obj in uow.get_dirty():
-        store = cls.store.fget(cls)
-        stores.add(store)
-        yield store.update(obj)
-
-      for obj in uow.get_removed():
-        store = cls.store.fget(cls)
-        stores.add(store)
-        yield store.remove(obj)
-
-      for store in stores:
-        yield store.commit()
+      for store in uow.table.indexes['store']:
+        # optimization hint, if we have multiple stores
+        # it may be benificial to run commit on all stores
+        # in parallel
+        yield store.commit(uow)
+      
       uow.clean()
     except:
         # Error encountered during prepare, vote rollback
@@ -143,19 +142,23 @@ class Entity(RObject):
     
   @classmethod
   def create(cls, **kw):
-    instance = cls()          
+    instance = cls()
     instance.set_values(kw)
     if instance.primary_key is None:
       instance.id = str(uuid.uuid1())
     cls.uow().register_new(instance)
     
+    instance.__state = cls.NEW
+    # todo: remove _is_new, don't think it's needed
     instance._is_new = True
-    return instance.save()
+    return instance #instance.save()
     
     
   @classmethod
   def find(cls, retreival, order=None, **conditions):
-    return cls.store.fget(cls).find(cls, retreival, order, **conditions)
+    records = cls.store.fget(cls).find(cls, retreival, order, **conditions)
+
+    return self.uow.realize(records)
 
     
   @classmethod
@@ -232,7 +235,22 @@ class Entity(RObject):
       value = field.__get__(self, self.__class__)
       encode_val_with_key(value, field_name)
 
+
+
+  # state querying methods
+  def is_new(self):
+    return self.__state == self.NEW
+    
+  def is_clean(self):
+    return self.__state == self.CLEAN
+    
+  def is_dirty(self):
+    return self.__state == self.DIRTY
+    
+  def is_removed(self):
+    return self.__state == self.REMOVED
   
+    
   def save(self):
     self.validate()
     if self.errors:
@@ -271,19 +289,34 @@ class Entity(RObject):
 
 
   def __init__(self, **kw):
+    self.__state = self.CLEAN
     self.attr = {}
     super(Entity,self).__init__(**kw)
     
+  #def value_for_key(self, key):
+  #  field = self.fields()[key]
+  #  return getattr(self, field.name)
     
   def set_value_for_key(self, value, key):
     """Entities will only set values on fields or relationships"""
-    
+
     self.will_change_value_for(key)
+    field = self.fields().get(key)
     
-    if key in self.fields():
-      setattr(self,key,value)
+    if field:
+      if field.is_relation:
+        field.relate(self, value)
+        inverse = field.inverse
+        if inverse:
+          value.will_change_value_for(inverse.name)
+          inverse.relate(value, self)
+          value.did_change_value_for(inverse.name)
+      else:
+        self.attr[key] = value
     else:
       self.set_value_for_undefined_key(value, key)
+      
+
     self.did_change_value_for(key)
 
     
