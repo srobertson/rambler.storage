@@ -20,22 +20,17 @@ class TestStorage(TestCase):
     'Address': Address,
     'Node': Node
   }
-    
+  
+  @TestCase.coroutine  
   def test_associate(self):
-    def routine():
-      client = yield Client.create(name='John')
-      address = yield Address.create(street='666 Mocking Bird Ln')
-    
-      client.address = address
-      address_after_set = yield client.address()
-    
-      eq_(address_after_set, address)
+    client = yield Client.create(name='John')
+    address = yield Address.create(street='666 Mocking Bird Ln')
 
-      store = client.store
-      assert client in store.storage_by_class[Client].values()
-      assert address in store.storage_by_class[Address].values()
-    op = self.CoroutineOperation(routine(),self.queue)
-    self.wait_for(op)
+    client.address = address
+    address_after_set = yield client.address()
+  
+    eq_(address_after_set, address)
+
     
     
     

@@ -1,4 +1,5 @@
 import itertools
+from searchable  import STable
 
 from searchable  import STable
 from Rambler import coroutine
@@ -104,6 +105,7 @@ class UnitOfWork(object):
     other_pk = self.pk(other)
     ref = {'primary_key': pk, 'other_key': other_pk, 'relation': relation.name}
     self.table.insert(ref)
+
     
     
   def realize(self, model, record):
@@ -126,7 +128,6 @@ class UnitOfWork(object):
     self.__register(obj, self.CLEAN)
               
   def __register(self,obj, state,allowed_states=[]):
-   
     old = self.table.where(__class__=type(obj), primary_key=obj.primary_key).first()
     if old:
       if old._Entity__state not in allowed_states:
@@ -138,6 +139,7 @@ class UnitOfWork(object):
     else:
       obj.add_observer(self, '*', obj.KeyValueObservingOptionOld)
       self.table.insert(obj)
+
               
               
   def register_dirty(self, obj):      
@@ -145,6 +147,7 @@ class UnitOfWork(object):
     transaction and needing to be updated. An object can only be
     registered as dirty if it's been previously registered as
     clean."""
+
     self.__register(obj, self.DIRTY, allowed_states=(self.CLEAN,))
 
   def register_removed(self, obj):

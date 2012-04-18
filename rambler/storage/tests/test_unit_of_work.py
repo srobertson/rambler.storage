@@ -79,13 +79,18 @@ class TestUnitOfWork(TestCase):
     # inverse relationships are implictly updated
     
     assert bob in subordinates
-    import pdb; pdb.set_trace()
+
     # everything waiting to be flushed
     eq_(uow.changes().all(), [
       {'create': 'Employee', 'mutations': {'id': 2, 'name': 'bob'}},
       {'relate': 'Employee', 'mutations': {'id': 2, 'manager': 1}},
       {'relate': 'Employee', 'mutations': {'id': 1, 'subordinates.@add': 2}}
     ])
+    
+    # this is how you insert a to_many
+    # sally = self.Employee.create(id=3, name='sally')
+    # big_bob.set_value_for_key(sally, 'subordinates.@add')
+    # big_bob.subordinates.add(sally)
     
     # if we modify a new object before it's commited, it's attributes are changed, but
     # the mutation is not neccesarily tracked

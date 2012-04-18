@@ -7,6 +7,13 @@ from nose.tools import eq_
 
 from models import *
   
+  
+def coroutine(func):
+  def test_coroutine(self):
+    op = self.CoroutineOperation(func(self), self.queue)
+    self.wait_for(op)
+
+  return test_coroutine
 
 class TestRelations(TestCase):
 
@@ -29,10 +36,9 @@ class TestRelations(TestCase):
     super(TestRelations, self).setUp()
     self.publishAppEvent('Initializing','')
     
-
   def test_has_one_and_belongs_to(self):
     #self.Address.client.association
-    
+
     role = self.Address.client
     eq_(role.name, 'client')
     eq_(role.destination, Client)
@@ -59,7 +65,8 @@ class TestRelations(TestCase):
     assert self.Client.address.inverse is self.Address.client
     assert self.Address.client.inverse is self.Client.address
     
-    
+
+  @TestCase.coroutine
   def test_has_many_belongs_to(self):
     role = self.Employee.manager
 
@@ -72,6 +79,30 @@ class TestRelations(TestCase):
     eq_(role.name,  'subordinates')
     eq_(role.destination, Employee)
     eq_(role.cardinality, 'many')
+    
+    manager = yield self.Employee.create()
+    subs = yield manager.subordinates()
+    eq_(len(subs),0)
+   
+    employee = yield self.Employee.create()
+    manager.subordinates.add(employee)
+    
+    # new employee is now in the collection of the manager's subordinates
+    eq_(len(subs),1)
+    emp_manager = yield employee.manager()
+    eq_(manager, emp_manager)
+    
+    # verify relation shortcuts work properly
+    employee2 = yield manager.subordinates.create()
+    
+    eq_(len(subs),2)
+    #Employee 1's relations should remain the same
+    emp_manager = yield employee.manager()
+    eq_(manager, emp_manager)
+    #Employee #2 should also share the same relation
+    emp_manager = yield employee2.manager()
+    eq_(manager, emp_manager)
+    
     
   def test_has_and_belongs_to_many(self):
     role = self.Part.assemblies

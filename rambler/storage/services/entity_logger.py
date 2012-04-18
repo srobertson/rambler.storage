@@ -69,13 +69,12 @@ class EntityLogger(object):
           if event['event'] == 'create':
             yield entity_cls.create(**record)
           elif event['event'] == 'relate':
-
             entity = yield entity_cls.find(record['id'])
             # find the other ojbect
             relation = getattr(entity_cls, record['relation'])
             other  = yield relation.destination.find(record['$ref'])
             yield entity.relate(other, relation)
-            
+            pass
           else:
             # todo use the primary key
             record = event['record']

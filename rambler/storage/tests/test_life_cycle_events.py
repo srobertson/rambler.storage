@@ -20,7 +20,6 @@ class TestLifeCycleEvents(TestCase):
     super(TestLifeCycleEvents,self).setUp()
     # Create a dynamic class on the fly
     self.TestEntity = type('TestEntity', (self.Entity,), {'id': field(str)})
-
   
   @TestCase.coroutine
   def test_json_storage(self):
@@ -39,11 +38,13 @@ class TestLifeCycleEvents(TestCase):
     eq_(len(uow.get_dirty()),   0)
     eq_(len(uow.get_removed()), 0)
   
+
     yield self.Employee.commit()
 
     # Commiting the transaction flushes the changes to the storage
     # the unit of work will keep track of the object now in the "clean"
     # state
+
 
     eq_(len(uow.objects()),     1)
     eq_(len(uow.get_new()),     0)
@@ -80,6 +81,4 @@ class TestLifeCycleEvents(TestCase):
     eq_(len(uow.get_clean()),   0)
     eq_(len(uow.get_dirty()),   0)
     eq_(len(uow.get_removed()), 0)
-  
-    
-  
+

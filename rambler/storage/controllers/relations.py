@@ -1,10 +1,8 @@
 from Rambler import outlet, component,coroutine
 
-    
-__guess__ = ()
-  
 
-      
+__guess__ = ()
+
 
 class one(object):
   """ Proxy for a related entity
@@ -21,11 +19,9 @@ class one(object):
   
   Noromal usage:
   >>> other = yield obj.other
-  # Permofrm operotaion on entities
-  
-  
-  
+  # Permofrm operotaion on entities  
   """
+  
   comp_reg     = outlet('ComponentRegistry')
   scheduler    = outlet('Scheduler')
   en_inflector = outlet('EnglishInflector')
@@ -64,6 +60,7 @@ class one(object):
       
   def relate(self, obj, value):
     obj.attr[self.name ] = value
+
   
   @property
   def destination(self):
@@ -85,7 +82,6 @@ class one(object):
       #assert self._inverse, "Missing inverse for %s" % self.name
 
     return self._inverse
-    
   
     
   def guess_inverse(self):
@@ -148,7 +144,7 @@ class relation:
     return other.unrelate(self.obj, self.relation)
 
     
-class collection:
+class collection(object):
   """Collection of objects, relies on the storage to fill in self.values
   """
   def __init__(self, obj, relation):
@@ -176,12 +172,10 @@ class collection:
     #return obj.save()
     self.values.add(obj)
     #return self.obj.relate(obj, self.relation)
-      
+
   def create(self, **kw):
-    op = self.relation.destination.create_related(self.obj, self.relation, **kw)
-    return op
-    #kw[self.foreign_key] = self.obj.primary_key
-    #return self.model.create(**kw)
+    other = yield self.relation.destination.create(**kw)
+    self.add(other)
     
   def find(self, *args, **conditions):
     return self.relation.destination.find_related(self.obj, self.relation, *args, **conditions)
