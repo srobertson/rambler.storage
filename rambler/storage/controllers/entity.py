@@ -76,9 +76,7 @@ class Entity(RObject):
         # it may be benificial to run commit on all stores
         # in parallel
         yield store.commit(uow)
-      
-      uow.clean()
-
+      uow.commit()
     except:
       exc_info = sys.exc_info() #store orginal error incase the storage has a problem
       for store in uow.stores():
@@ -91,9 +89,6 @@ class Entity(RObject):
       uow.rollback()
       # throw the original exception
       raise exc_info[0],exc_info[1],exc_info[2]
-    
-    uow.clean()
-
     
     
   @classmethod
@@ -159,9 +154,10 @@ class Entity(RObject):
     instance.set_values(kw)
     if instance.primary_key is None:
       instance.id = str(uuid.uuid1())
+    instance.__state = cls.NEW
     cls.uow().register_new(instance)
     
-    instance.__state = cls.NEW
+
     # todo: remove _is_new, don't think it's needed
     instance._is_new = True
     return instance #instance.save()
@@ -170,8 +166,29 @@ class Entity(RObject):
   @classmethod
   def find(cls, retreival, order=None, **conditions):
     records = cls.store.fget(cls).find(cls, retreival, order, **conditions)
+    return self.uow().realize(records)
+    
+  
+  def remove(self):
+    self.uow().register_removed(self)
+    for relation in [f for f in self.fields().values() if f.is_relation]:
+      inverse = relation.inverse
+      if inverse:
+        # unrelate items in uow, it's up to the storage to do the right
+        # thing on object removeal
+        if relation.cardinality =='one':
+          other = self.attr.get(relation.name,None)
+          if other:
+            others = [other]
+          else:
+            others = []
+        else:
+          others = self.attr.get(relation.name, [])
+          
+        for other in others:
+          inverse.unrelate(other, self)
+    
 
-    return self.uow.realize(records)
 
     
   @classmethod

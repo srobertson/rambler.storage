@@ -65,6 +65,13 @@ class one(object):
       obj.attr[self.name ] = value
       obj.did_change_value_for(self.name)
 
+  def unrelate(self, obj, value):
+     """Relates one object to anther and publishes KVO event"""
+     if obj.attr.get(self.name) == value:
+       obj.will_change_value_for(self.name)
+       obj.attr[self.name] = None
+       obj.did_change_value_for(self.name)
+
   
   @property
   def destination(self):
@@ -120,6 +127,15 @@ class many(one):
       obj.will_mutate_set(self.name, obj.KeyValueUnionSetMutation, objects)
       collection.values.add(value)
       obj.did_mutate_set(self.name, obj.KeyValueUnionSetMutation, objects)
+      
+  def unrelate(self, obj, value):
+    collection = self.wrap(obj)
+    if value in collection.values:
+      objects = [value]
+      obj.will_mutate_set(self.name, obj.KeyValueMinusSetMutation, objects)
+      collection.values.remove(value)
+      obj.did_mutate_set(self.name, obj.KeyValueMinusSetMutation, objects)
+
     
     
 class relation:

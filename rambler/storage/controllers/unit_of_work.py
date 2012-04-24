@@ -29,17 +29,18 @@ class UnitOfWork(object):
   def observe_value_for(self, key_path, obj, changes):
     if changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeInsertion:
       self._changes.insert({'type': 'relate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeNewKey]})
-      
+    elif changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeRemoval:
+      self._changes.insert({'type': 'unrelate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeOldKey]})
     elif obj.is_clean():
       obj._Entity__state = obj.DIRTY
       self._changes.insert({'type': 'update', 'object': obj, 'set': {key_path: obj.attr[key_path]}})
       self.register_dirty(obj)
     # todo: track set mutations as individual changes
-    else:
+    elif obj.is_dirty():
       value = obj.attr[key_path]
       # since update syntaxt does not traverse objects or hashes, lookup
       # and add change directly to the mutations list
-      self._changes.where(object=obj).first()[key_path] = value
+      self._changes.where(object=obj).first()['set'][key_path] = value
     
 
   def changes(self):
@@ -138,7 +139,7 @@ class UnitOfWork(object):
           "already registered with the following status %s" % (obj.primary_key,state)
       else:
         #Optimize hint, old is the row_id, so we could avoid a double search
-        self.table.update().set(state=state).where(__class__=type(obj), primary_key=pk).execute()
+        self.table.update().set(_Entity__state=state).where(__class__=type(obj), primary_key=old.primary_key).execute()
     else:
       obj.add_observer(self, '*', obj.KeyValueObservingOptionOld | obj.KeyValueObservingOptionNew)
       self.table.insert(obj)
@@ -161,6 +162,7 @@ class UnitOfWork(object):
     removed. """
 
     self.__register(obj, self.REMOVED, allowed_states=(self.NEW,self.CLEAN, self.DIRTY))
+    obj.remove_observer(self, '*')
 
   def register_new(self, obj):
     """Marks an object as being newly created in the current
@@ -196,27 +198,27 @@ class UnitOfWork(object):
   def get_new(self):
     """Returns a list of all new objects in the current
     transaction."""
-    return self.table.where(state=self.NEW).all()
+    return self.table.where(_Entity__state=self.NEW).all()
       
   def get_clean(self):
     """Returns a list of all the clean objects in the current
     transaction."""
-    return self.table.where(state=self.CLEAN).all()
+    return self.table.where(_Entity__state=self.CLEAN).all()
 
   def get_dirty(self):
     """Returns a list of all the dirty objects in the current
     transaction."""
-    return self.table.where(state=self.DIRTY).all()
+    return self.table.where(_Entity__state=self.DIRTY).all()
 
   def get_removed(self):
     """Returns a list of all objects that need to be removedi in
     the current transaction."""
-    return self.table.where(state=self.REMOVED).all()
+    return self.table.where(_Entity__state=self.REMOVED).all()
 
-  def clean(self):
-    self.table.delete().where(state=self.REMOVED).execute()
-    self.table.update().set(state=self.CLEAN).execute()
-    
+  def commit(self):    
+    self.table.delete().where(_Entity__state=self.REMOVED).execute()
+    self.table.update().set(_Entity__state=self.CLEAN).execute()
+    self._changes.delete().execute()
     
   def clear(self):
     """Removes all the object from every possible state."""
