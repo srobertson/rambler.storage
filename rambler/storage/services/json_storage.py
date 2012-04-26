@@ -42,8 +42,6 @@ class JSONStorage(component('InMemoryStorage')):
       del self.storage_by_class[type(obj)][obj.primary_key]
     
     coder.finish_encoding()
-    
-    print "-->", coder.buffer.getvalue()
 
   def restore(self, stream):
     for transaction in stream:

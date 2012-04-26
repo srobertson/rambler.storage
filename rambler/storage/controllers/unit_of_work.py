@@ -27,20 +27,22 @@ class UnitOfWork(object):
     self._changes = STable()
    
   def observe_value_for(self, key_path, obj, changes):
-    if changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeInsertion:
-      self._changes.insert({'type': 'relate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeNewKey]})
-    elif changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeRemoval:
-      self._changes.insert({'type': 'unrelate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeOldKey]})
-    elif obj.is_clean():
-      obj._Entity__state = obj.DIRTY
-      self._changes.insert({'type': 'update', 'object': obj, 'set': {key_path: obj.attr[key_path]}})
+    #if changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeInsertion:
+    #  self._changes.insert({'type': 'relate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeNewKey]})
+    #  
+    #elif changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeRemoval:
+    #  self._changes.insert({'type': 'unrelate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeOldKey]})
+
+    # Record changes to clean and dirty objects only. Marks clean objects dirty on 
+    # the first detected change
+    if obj.is_clean():
+      self._changes.insert({'type': 'update', 'object': obj, 'changes': {key_path: changes}})
       self.register_dirty(obj)
     # todo: track set mutations as individual changes
     elif obj.is_dirty():
-      value = obj.attr[key_path]
       # since update syntaxt does not traverse objects or hashes, lookup
       # and add change directly to the mutations list
-      self._changes.where(object=obj).first()['set'][key_path] = value
+      self._changes.where(object=obj).first()['changes'][key_path] = changes
     
 
   def changes(self):
@@ -160,8 +162,15 @@ class UnitOfWork(object):
     transaction. An object can only be registered as removed if it
     was registered as new, clean or dirty prior to being
     removed. """
-
-    self.__register(obj, self.REMOVED, allowed_states=(self.NEW,self.CLEAN, self.DIRTY))
+    
+    if obj.is_new():
+      self._changes.delete().where(object=obj).execute()
+    elif obj.is_clean():
+      self._changes.insert({'type': 'remove', 'object': obj})
+    elif obj.is_dirty():
+      self._changes.update().set(type='remove').where(object=obj).execute()
+      
+    self.table.update().set(_Entity__state=self.REMOVED).where(__class__=type(obj), primary_key=obj.primary_key).execute()    
     obj.remove_observer(self, '*')
 
   def register_new(self, obj):

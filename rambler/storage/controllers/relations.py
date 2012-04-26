@@ -182,22 +182,17 @@ class collection(object):
     return self.all()
     
   def __iter__(self):
+    # hmmm how can this be an iterator if this returns an operation?
     return self.all()
 
   def all(self):
     return self.find('all')
     
-    #self.model.find_related(self.obj, self.relation)
-    #q = {self.foreign_key: self.obj.primary_key}
-    #return self.model.find('all', conditions=q)
-    
   def add(self, obj):
-    #self.model.relate(obj)
-    #obj[self.foreign_key] = self.obj.primary_key
-    # Return the op incase some one has the urge to wait for it
-    #return obj.save()
-    self.values.add(obj)
-    #return self.obj.relate(obj, self.relation)
+    self.relation.relate(self.obj,obj)
+    inverse = self.relation.inverse
+    if inverse:
+      inverse.relate(obj,self.obj)
 
   def create(self, **kw):
     other = yield self.relation.destination.create(**kw)
@@ -205,8 +200,6 @@ class collection(object):
     
   def find(self, *args, **conditions):
     return self.relation.destination.find_related(self.obj, self.relation, *args, **conditions)
-    #conditions[self.foreign_key] = self.obj.primary_key
-    #return self.model.find(*args, conditions=conditions)
     
   def count(self):
     destination = self.relation.destination

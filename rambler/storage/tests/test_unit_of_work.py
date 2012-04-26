@@ -81,28 +81,35 @@ class TestUnitOfWork(TestCase):
     assert bob in subordinates
 
     # everything waiting to be flushed
-    eq_(uow.changes().all(), [
+    self.assertSequenceEqual(uow.changes().all(), [
       {'type':'create', 'object': bob},
-      {'type':'relate', 'object':big_bob, 'relation': 'subordinates', 'values': [bob]}
+      {'type':'update', 
+       'object':big_bob,
+       'changes':{'subordinates':{
+                  'KeyValueChangeKindKey': 2,
+                  'KeyValueChangeNewKey': [bob]
+                 }}
+      }
     ])
     
-    # this is how you insert a to_many
-    # sally = self.Employee.create(id=3, name='sally')
-    # big_bob.set_value_for_key(sally, 'subordinates.@add')
-    # big_bob.subordinates.add(sally)
     
     # if we modify a new object before it's commited, it's attributes are changed, but
     # the mutation is not neccesarily tracked
     bob.name = 'bobby'
-    uow.changes() == [
-      {'create': 'Employee', 'mutations': {'id': 2, 'name': 'bobby'}},
-      {'relate': 'Employee', 'mutations': {'id': 2, 'manager': 1}},
-      {'relate': 'Employee', 'mutations': {'id': 1, 'subordinates.@add': 2}}
-    ]
-    
+    self.assertSequenceEqual(uow.changes().all(), [
+      {'type':'create', 'object': bob},
+      {'type':'update', 
+       'object':big_bob,
+       'changes':{'subordinates':{
+                  'KeyValueChangeKindKey': 2,
+                  'KeyValueChangeNewKey': [bob]
+                 }}
+      }
+    ])
+        
     # commiting the uow will flush the changes to the stores
     uow.commit()
-    eq_(uow.changes().all(), [])
+    self.assertSequenceEqual(uow.changes().all(), [])
     
     # The entities  will still be tracked and clean
     # ... note this would query the storage
@@ -117,18 +124,36 @@ class TestUnitOfWork(TestCase):
     assert bob.is_removed()
     # accessing an attribute of a delete object should throw an error
     
-    uow.changes() == [
-      {'remove': 'Employee', 'mutations': {'id': 2}},
-      {'update': 'Employee', 'mutations': {'id': 1, 'subordinates.@remove':2}},
-    ]
+    self.assertSequenceEqual(uow.changes().all(), [
+      {'type':'remove', 'object': bob},
+      { 'type':'update', 
+        'object':big_bob,
+        'changes':{'subordinates':{
+            'KeyValueChangeKindKey': 3,
+            'KeyValueChangeOldKey': [bob]
+          }}
+      }])
+      
     
-    big_bob.title = 'The one and only'
+    big_bob.set_value_for_key('The one and only', 'title')
     
-    uow.changes() == [
-      {'remove': 'Employee', 'mutations': {'id': 2}},
-      {'update': 'Employee', 'mutations': {'id': 1, 'subordinates.@remove':2}},
-      {'update': 'Employee', 'mutations': {'id': 1, 'title': 'The one and only'}},
-    ]
+    self.assertSequenceEqual(uow.changes().all(), [
+      {'type':'remove', 'object': bob},
+      { 'type':'update', 
+        'object':big_bob,
+        'changes':{
+          'subordinates':{
+            'KeyValueChangeKindKey': 3,
+            'KeyValueChangeOldKey': [bob]
+          },
+          'title':{
+            'KeyValueChangeKindKey': 1,
+            'KeyValueChangeOldKey': None,
+            'KeyValueChangeNewKey': 'The one and only'
+          },
+          
+        }
+    }])
     
     uow.commit()
     eq_(uow.changes().all(), [])

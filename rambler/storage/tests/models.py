@@ -23,6 +23,7 @@ class Address(component('Entity')):
 class Employee(component('Entity')):
   id = field(str)
   name = field(str)
+  title = field(str)
 
   @classmethod
   def assembled(cls):
