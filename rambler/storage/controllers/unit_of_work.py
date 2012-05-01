@@ -27,16 +27,13 @@ class UnitOfWork(object):
     self._changes = STable()
    
   def observe_value_for(self, key_path, obj, changes):
-    #if changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeInsertion:
-    #  self._changes.insert({'type': 'relate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeNewKey]})
-    #  
-    #elif changes[obj.KeyValueChangeKindKey] == obj.KeyValueChangeRemoval:
-    #  self._changes.insert({'type': 'unrelate', 'object': obj, 'relation': key_path,  'values':  changes[obj.KeyValueChangeOldKey]})
-
     # Record changes to clean and dirty objects only. Marks clean objects dirty on 
     # the first detected change
+    
+    # Todo to-many relations need to append their changes
+    
     if obj.is_clean():
-      self._changes.insert({'type': 'update', 'object': obj, 'changes': {key_path: changes}})
+      self._changes.insert({'event': 'update', 'object': obj, 'changes': {key_path: changes}})
       self.register_dirty(obj)
     # todo: track set mutations as individual changes
     elif obj.is_dirty():
@@ -166,7 +163,7 @@ class UnitOfWork(object):
     if obj.is_new():
       self._changes.delete().where(object=obj).execute()
     elif obj.is_clean():
-      self._changes.insert({'type': 'remove', 'object': obj})
+      self._changes.insert({'event': 'remove', 'object': obj})
     elif obj.is_dirty():
       self._changes.update().set(type='remove').where(object=obj).execute()
       
@@ -179,7 +176,7 @@ class UnitOfWork(object):
     previous state."""
         
     self.__register(obj, self.NEW)
-    self._changes.insert({'type':'create', 'object': obj})
+    self._changes.insert({'event':'create', 'object': obj})
 
 
   def get_status(self, primary_key):
@@ -247,7 +244,11 @@ class UnitOfWork(object):
     """Returns the primary_key from the record"""
     if len(model.primary_key_fields) == 1:
       # optimization for single key primary keys
-      return record[model.primary_key_fields[0]]
+      try:
+        return record[model.primary_key_fields[0]]
+      except:
+        import pdb; pdb.set_trace()
+        raise
     else: #it's a commpond key      
       primary_key = []
       for field in model.primary_key_fields:

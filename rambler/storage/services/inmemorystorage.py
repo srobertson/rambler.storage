@@ -16,13 +16,13 @@ class InMemoryStorage(object):
     
   @coroutine
   def commit(self, uow):
-    for obj in uow.where(store=self, state=uow.NEW):
+    for obj in uow.where(store=self, _Entity__state=uow.NEW):
       self.storage_by_class[type(obj)][obj.primary_key] = obj.attr.copy()
     
-    for obj in uow.where(store=self, state=uow.DIRTY):
+    for obj in uow.where(store=self, _Entity__state=uow.DIRTY):
       self.storage_by_class[type(obj)][obj.primary_key] = obj.attr.copy()
     
-    for obj in uow.where(store=self, state=uow.REMOVED):
+    for obj in uow.where(store=self, _Entity__state=uow.REMOVED):
       del self.storage_by_class[type(obj)][obj.primary_key]
       
   def rollback(self):

@@ -166,7 +166,7 @@ class Entity(RObject):
   @classmethod
   def find(cls, retreival, order=None, **conditions):
     records = cls.store.fget(cls).find(cls, retreival, order, **conditions)
-    return self.uow().realize(records)
+    return cls.uow().realize(cls, records)
     
   
   def remove(self):
@@ -255,6 +255,11 @@ class Entity(RObject):
       try:
         encode_method_name = 'encode_%s_for' % field.type.__name__
       except AttributeError:
+        # TODO: figure out a less coupled approach to saving relationships
+        if field.cardinality == 'one':
+          value = self.attr.get(field.name)
+          if value is not None:
+            coder.encode_object_for(value.primary_key, field.name)
         # ignore relations
         continue
       # attempt to call encode_type_for() the given type, for example

@@ -82,8 +82,8 @@ class TestUnitOfWork(TestCase):
 
     # everything waiting to be flushed
     self.assertSequenceEqual(uow.changes().all(), [
-      {'type':'create', 'object': bob},
-      {'type':'update', 
+      {'event':'create', 'object': bob},
+      {'event':'update', 
        'object':big_bob,
        'changes':{'subordinates':{
                   'KeyValueChangeKindKey': 2,
@@ -97,8 +97,8 @@ class TestUnitOfWork(TestCase):
     # the mutation is not neccesarily tracked
     bob.name = 'bobby'
     self.assertSequenceEqual(uow.changes().all(), [
-      {'type':'create', 'object': bob},
-      {'type':'update', 
+      {'event':'create', 'object': bob},
+      {'event':'update', 
        'object':big_bob,
        'changes':{'subordinates':{
                   'KeyValueChangeKindKey': 2,
@@ -125,8 +125,8 @@ class TestUnitOfWork(TestCase):
     # accessing an attribute of a delete object should throw an error
     
     self.assertSequenceEqual(uow.changes().all(), [
-      {'type':'remove', 'object': bob},
-      { 'type':'update', 
+      {'event':'remove', 'object': bob},
+      { 'event':'update', 
         'object':big_bob,
         'changes':{'subordinates':{
             'KeyValueChangeKindKey': 3,
@@ -138,8 +138,8 @@ class TestUnitOfWork(TestCase):
     big_bob.set_value_for_key('The one and only', 'title')
     
     self.assertSequenceEqual(uow.changes().all(), [
-      {'type':'remove', 'object': bob},
-      { 'type':'update', 
+      {'event':'remove', 'object': bob},
+      { 'event':'update', 
         'object':big_bob,
         'changes':{
           'subordinates':{
